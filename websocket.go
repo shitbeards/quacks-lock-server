@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+    "encoding/json"
 )
 
 const (
@@ -29,13 +30,18 @@ var upgrader = websocket.Upgrader{
     },
 }
 
+type response struct {
+    Key string `json:key`
+    Quacks int `json:quacks`
+}
+
 // connection is an middleman between the websocket connection and the hub.
 type connection struct {
 	// The websocket connection.
 	ws *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	send chan []byte
+	send chan response
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -55,7 +61,11 @@ func (c *connection) readPump() {
 			}
 			break
 		}
-		h.broadcast <- message
+        quacks.increment()
+		h.broadcast <- response{
+            Key: string(message[:1]),
+            Quacks: quacks.count,
+        }
 	}
 }
 
@@ -74,11 +84,12 @@ func (c *connection) writePump() {
 	}()
 	for {
 		select {
-		case message, ok := <-c.send:
+		case resp, ok := <-c.send:
 			if !ok {
 				c.write(websocket.CloseMessage, []byte{})
 				return
 			}
+            message, _ := json.Marshal(resp)
 			if err := c.write(websocket.TextMessage, message); err != nil {
 				return
 			}
@@ -97,7 +108,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	c := &connection{send: make(chan []byte, 256), ws: ws}
+	c := &connection{send: make(chan response, 256), ws: ws}
 	h.register <- c
 	go c.writePump()
 	c.readPump()
