@@ -7,7 +7,7 @@ import (
     "os"
 )
 
-var addr = flag.String("addr", ":8081", "http service address")
+var addr = flag.String("addr", "8081", "http service address")
 
 func main() {
     port := os.Getenv("PORT")
@@ -17,7 +17,7 @@ func main() {
 	flag.Parse()
 	go h.run()
 	http.HandleFunc("/ws", serveWs)
-	err := http.ListenAndServe(port, nil)
+	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
