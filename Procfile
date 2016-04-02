@@ -1,1 +1,1 @@
-web: quacks-lock
+web: quacks-lock-server
